@@ -1,11 +1,35 @@
-# React + TypeScript + Vite
+# FinanceAI - Cardano Finance dApp
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A beautiful, fully animated AI-powered finance tracking application built with React, TypeScript, Framer Motion, and designed for Cardano blockchain integration.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 🎨 Beautiful UI Design
+- **Mature Color Palette**: Sophisticated dark theme with subtle colors (no gradients or childish elements)
+- **Smooth Animations**: Motion graphics using Framer Motion for all interactions
+- **Page Transitions**: Seamless navigation between routes
+- **Responsive Design**: Works beautifully on all screen sizes
+
+### 🤖 AI-Powered Features
+- **Smart Budgeting**: AI agents analyze spending and suggest optimizations
+- **Auto-Categorization**: Automatic transaction classification with confidence scores
+- **Intelligent Insights**: Timeline of AI recommendations with explainability
+- **Agent Marketplace**: Discover and enable free or premium AI agents
+
+### ⛓️ Blockchain Integration
+- **Cardano Wallet**: Connect Nami, Eternl, or Lace wallets
+- **On-Chain Proofs**: Store budget snapshots and decisions on Cardano
+- **Hydra L2 Support**: Fast, low-cost transactions via Hydra Layer 2
+- **Blockchain Explorer**: View transaction hashes and on-chain data
+
+## Tech Stack
+
+- **React 19** - Modern React with latest features
+- **TypeScript** - Type-safe development
+- **Vite** - Lightning-fast build tool
+- **Framer Motion** - Production-ready motion library
+- **React Router** - Client-side routing with transitions
+- **Lucide React** - Beautiful, consistent icon set
 
 ## React Compiler
 
