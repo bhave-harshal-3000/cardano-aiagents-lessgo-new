@@ -7,6 +7,7 @@ import { Transactions } from './pages/Transactions';
 import { Budget } from './pages/Budget';
 import { Agents } from './pages/Agents';
 import { Insights } from './pages/Insights';
+import { Savings } from './pages/Savings';
 import { Settings } from './pages/Settings';
 import { Admin } from './pages/Admin';
 
@@ -21,6 +22,7 @@ function App() {
         <Route path="/budget" element={<Budget />} />
         <Route path="/agents" element={<Agents />} />
         <Route path="/insights" element={<Insights />} />
+        <Route path="/savings" element={<Savings />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<Navigate to="/" replace />} />

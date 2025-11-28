@@ -13,13 +13,16 @@ import {
   Calendar,
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Modal } from '../components/Modal';
+import { PiggyBankAnimation } from '../components/PiggyBankAnimation';
 import { TopBar } from '../components/TopBar';
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showAIModal, setShowAIModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -157,50 +160,82 @@ export const Dashboard: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
+                onClick={stat.label === 'Total Saved' ? () => navigate('/savings') : undefined}
+                style={{ cursor: stat.label === 'Total Saved' ? 'pointer' : 'default' }}
               >
                 <Card hover>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div
-                        style={{
-                          width: '48px',
-                          height: '48px',
-                          background: `${stat.color}20`,
-                          borderRadius: 'var(--radius-sm)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginBottom: '16px',
-                          color: stat.color,
-                        }}
-                      >
-                        <stat.icon size={24} />
-                      </div>
-                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', marginBottom: '8px' }}>
+                  {stat.label === 'Total Saved' ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 0' }}>
+                      <PiggyBankAnimation />
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', marginTop: '8px', marginBottom: '8px' }}>
                         {stat.label}
                       </p>
                       <h3 style={{ fontSize: '28px', fontWeight: '700' }}>{stat.value}</h3>
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.3 + index * 0.1, type: 'spring' }}
+                        style={{
+                          padding: '4px 8px',
+                          background: 'var(--color-accent-muted)',
+                          color: 'var(--color-accent)',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          marginTop: '8px',
+                        }}
+                      >
+                        <TrendingUp size={14} />
+                        {stat.change}
+                      </motion.div>
                     </div>
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.3 + index * 0.1, type: 'spring' }}
-                      style={{
-                        padding: '4px 8px',
-                        background: stat.trend === 'up' ? 'var(--color-accent-muted)' : 'var(--color-primary-muted)',
-                        color: stat.trend === 'up' ? 'var(--color-accent)' : 'var(--color-primary)',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '13px',
-                        fontWeight: '500',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      {stat.trend === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                      {stat.change}
-                    </motion.div>
-                  </div>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div
+                          style={{
+                            width: '48px',
+                            height: '48px',
+                            background: `${stat.color}20`,
+                            borderRadius: 'var(--radius-sm)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '16px',
+                            color: stat.color,
+                          }}
+                        >
+                          <stat.icon size={24} />
+                        </div>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', marginBottom: '8px' }}>
+                          {stat.label}
+                        </p>
+                        <h3 style={{ fontSize: '28px', fontWeight: '700' }}>{stat.value}</h3>
+                      </div>
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.3 + index * 0.1, type: 'spring' }}
+                        style={{
+                          padding: '4px 8px',
+                          background: stat.trend === 'up' ? 'var(--color-accent-muted)' : 'var(--color-primary-muted)',
+                          color: stat.trend === 'up' ? 'var(--color-accent)' : 'var(--color-primary)',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        {stat.trend === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        {stat.change}
+                      </motion.div>
+                    </div>
+                  )}
                 </Card>
               </motion.div>
             ))}
