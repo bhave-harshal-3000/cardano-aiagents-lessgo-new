@@ -8,11 +8,16 @@ import { Modal } from '../components/Modal';
 import { TopBar } from '../components/TopBar';
 import { receiptTheme } from '../styles/receiptTheme';
 import { ReceiptHeader } from '../components';
+import { useWallet } from '../contexts/WalletContext';
+import { transactionAPI, budgetAPI, savingsAPI } from '../services/api';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const Settings: React.FC = () => {
-  const [walletConnected, setWalletConnected] = useState(false);
+  const { walletAddress, connectWallet, disconnectWallet, userId } = useWallet();
   const [hydraEnabled, setHydraEnabled] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [privacySettings, setPrivacySettings] = useState({
     shareSpending: true,
     shareIncome: false,
@@ -20,7 +25,168 @@ export const Settings: React.FC = () => {
     shareTransactions: true,
   });
 
-  const walletAddress = walletConnected ? 'addr1qx2kd28nq8s...7j8a9c4h6k' : null;
+  const walletConnected = !!walletAddress;
+
+  const handleExportData = async () => {
+    if (!userId) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    try {
+      setExporting(true);
+
+      // Fetch all user data
+      const [transactions, budgets, savings] = await Promise.all([
+        transactionAPI.getAll(userId),
+        budgetAPI.getAll(userId),
+        savingsAPI.getAll(userId),
+      ]);
+
+      // Create PDF
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yPos = 20;
+
+      // Title Page
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('FINANCEBOT DATA EXPORT', pageWidth / 2, yPos, { align: 'center' });
+      
+      yPos += 15;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Export Date: ${new Date().toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
+      
+      yPos += 7;
+      const shortAddress = walletAddress ? `${walletAddress.slice(0, 10)}...${walletAddress.slice(-8)}` : 'Not connected';
+      doc.text(`Wallet: ${shortAddress}`, pageWidth / 2, yPos, { align: 'center' });
+      
+      yPos += 15;
+
+      // Transactions Table
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Transactions', 14, yPos);
+      yPos += 5;
+
+      const transactionData = transactions
+        .filter((tx: any) => tx.category !== 'HTML Import')
+        .map((tx: any) => [
+          new Date(tx.date).toLocaleDateString(),
+          tx.description,
+          tx.category,
+          `${tx.type === 'expense' ? '-' : '+'}$${tx.amount.toFixed(2)}`
+        ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Date', 'Description', 'Category', 'Amount']],
+        body: transactionData,
+        theme: 'striped',
+        headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255] },
+        styles: { fontSize: 9 },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 40 },
+          3: { cellWidth: 35, halign: 'right' }
+        }
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+
+      // Check if we need a new page
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      // Budgets Table
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Budgets', 14, yPos);
+      yPos += 5;
+
+      const budgetData = budgets.map((budget: any) => {
+        const progress = budget.limit > 0 ? ((budget.spent / budget.limit) * 100).toFixed(1) : '0.0';
+        return [
+          budget.category,
+          `$${budget.limit.toFixed(2)}`,
+          `$${(budget.spent || 0).toFixed(2)}`,
+          budget.period || 'monthly',
+          `${progress}%`
+        ];
+      });
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Category', 'Limit', 'Spent', 'Period', 'Progress']],
+        body: budgetData,
+        theme: 'striped',
+        headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255] },
+        styles: { fontSize: 9 },
+        columnStyles: {
+          0: { cellWidth: 45 },
+          1: { cellWidth: 30, halign: 'right' },
+          2: { cellWidth: 30, halign: 'right' },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 25, halign: 'right' }
+        }
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+
+      // Check if we need a new page
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      // Savings Goals Table
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Savings Goals', 14, yPos);
+      yPos += 5;
+
+      const savingsData = savings.map((goal: any) => {
+        const progress = goal.targetAmount > 0 ? ((goal.currentAmount / goal.targetAmount) * 100).toFixed(1) : '0.0';
+        return [
+          goal.goalName,
+          `$${goal.targetAmount.toFixed(2)}`,
+          `$${goal.currentAmount.toFixed(2)}`,
+          `${progress}%`,
+          new Date(goal.deadline).toLocaleDateString()
+        ];
+      });
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Goal', 'Target', 'Current', 'Progress', 'Deadline']],
+        body: savingsData,
+        theme: 'striped',
+        headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255] },
+        styles: { fontSize: 9 },
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 30, halign: 'right' },
+          2: { cellWidth: 30, halign: 'right' },
+          3: { cellWidth: 25, halign: 'right' },
+          4: { cellWidth: 35 }
+        }
+      });
+
+      // Save PDF
+      doc.save(`financebot-export-${new Date().toISOString().split('T')[0]}.pdf`);
+
+      alert('Data exported successfully as PDF!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export data. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div style={{ ...receiptTheme.pageWrapper, ...receiptTheme.cssVariables }}>
@@ -130,7 +296,7 @@ export const Settings: React.FC = () => {
                     {walletAddress}
                   </div>
                 </div>
-                <Button variant="outline" icon={Wallet} onClick={() => setWalletConnected(false)} fullWidth>
+                <Button variant="outline" icon={Wallet} onClick={disconnectWallet} fullWidth>
                   Disconnect Wallet
                 </Button>
               </div>
@@ -139,7 +305,7 @@ export const Settings: React.FC = () => {
                 <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '16px', lineHeight: '1.6' }}>
                   Connect your Cardano wallet to enable on-chain features like secure budget storage and fast Hydra payments.
                 </p>
-                <Button variant="primary" icon={Wallet} onClick={() => setWalletConnected(true)} fullWidth>
+                <Button variant="primary" icon={Wallet} onClick={connectWallet} fullWidth>
                   Connect Wallet
                 </Button>
               </div>
@@ -147,97 +313,7 @@ export const Settings: React.FC = () => {
           </Card>
         </motion.div>
 
-        {/* Hydra L2 Section */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ marginBottom: '24px' }}>
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    background: hydraEnabled ? 'var(--color-primary-muted)' : 'var(--color-surface)',
-                    borderRadius: 'var(--radius-sm)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: hydraEnabled ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                  }}
-                >
-                  <Zap size={28} />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '4px' }}>Hydra Layer 2</h3>
-                  <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-                    Enable fast and low-cost transactions
-                  </p>
-                </div>
-              </div>
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setHydraEnabled(!hydraEnabled)}
-                disabled={!walletConnected}
-                style={{
-                  width: '56px',
-                  height: '32px',
-                  background: hydraEnabled ? 'var(--color-accent)' : 'var(--color-surface)',
-                  borderRadius: '16px',
-                  border: 'none',
-                  cursor: walletConnected ? 'pointer' : 'not-allowed',
-                  position: 'relative',
-                  opacity: walletConnected ? 1 : 0.5,
-                }}
-              >
-                <motion.div
-                  animate={{ x: hydraEnabled ? 26 : 2 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    background: '#fff',
-                    borderRadius: '50%',
-                    position: 'absolute',
-                    top: '2px',
-                  }}
-                />
-              </motion.button>
-            </div>
-
-            {!walletConnected && (
-              <div
-                style={{
-                  padding: '12px',
-                  background: 'var(--color-warning-muted)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '13px',
-                  color: 'var(--color-text-secondary)',
-                }}
-              >
-                Connect your wallet to enable Hydra L2
-              </div>
-            )}
-
-            {hydraEnabled && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                style={{
-                  padding: '12px',
-                  background: 'var(--color-primary-muted)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '13px',
-                }}
-              >
-                <div style={{ fontWeight: '600', marginBottom: '4px', color: 'var(--color-primary)' }}>
-                  Hydra Session Active
-                </div>
-                <div style={{ color: 'var(--color-text-secondary)' }}>
-                  Session ID: hydra_session_x8j2k9...
-                </div>
-              </motion.div>
-            )}
-          </Card>
-        </motion.div>
+        
 
         {/* Privacy Controls */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} style={{ marginBottom: '24px' }}>
@@ -344,8 +420,14 @@ export const Settings: React.FC = () => {
           <Card>
             <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px' }}>Data Management</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <Button variant="outline" icon={Download} fullWidth>
-                Export All Data
+              <Button 
+                variant="outline" 
+                icon={Download} 
+                fullWidth 
+                onClick={handleExportData}
+                disabled={exporting}
+              >
+                {exporting ? 'Exporting...' : 'Export All Data'}
               </Button>
               <Button variant="outline" icon={Trash2} onClick={() => setShowDeleteModal(true)} fullWidth>
                 Delete Account

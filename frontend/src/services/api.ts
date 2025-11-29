@@ -111,6 +111,9 @@ export const savingsAPI = {
   getAll: (userId: string) =>
     apiCall(`/savings/${userId}`),
   
+  getStats: (userId: string) =>
+    apiCall(`/savings/stats/${userId}`),
+  
   create: (savingsData: {
     userId: string;
     goalName: string;

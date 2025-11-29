@@ -30,6 +30,7 @@ export const Transactions: React.FC = () => {
   const [fileError, setFileError] = useState<string>('');
   const [showInstructions, setShowInstructions] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [importedCount, setImportedCount] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -739,13 +740,13 @@ export const Transactions: React.FC = () => {
                       // Read HTML file content
                       const htmlContent = await uploadedFile.text();
                       
-                      // Create a single transaction record with the HTML file
-                      await transactionAPI.create({
+                      // Send HTML file to backend for parsing
+                      const response = await transactionAPI.create({
                         userId,
                         type: 'expense',
                         amount: 0,
-                        category: 'HTML Import',
-                        description: `HTML file: ${uploadedFile.name}`,
+                        category: 'Uncategorized',
+                        description: 'Google Pay Import',
                         date: new Date(),
                         htmlFile: {
                           content: htmlContent,
@@ -754,31 +755,37 @@ export const Transactions: React.FC = () => {
                         },
                       });
                       
-                      // Refresh transactions list (filter out HTML Import)
-                      const data = await transactionAPI.getAll(userId);
-                      const mappedTransactions = data
-                        .filter((tx: any) => tx.category !== 'HTML Import')
-                        .map((tx: any) => ({
-                          id: tx._id,
-                          date: new Date(tx.date).toISOString().split('T')[0],
-                          description: tx.description || 'No description',
-                          category: tx.category,
-                          amount: tx.type === 'expense' ? -tx.amount : tx.amount,
-                          autoCategorized: false,
-                          confidence: 0,
-                        }));
-                      setTransactions(mappedTransactions);
-                      
-                      setImportSuccess(true);
+                      // Check if parsing was successful
+                      if (response.count && response.count > 0) {
+                        // Refresh transactions list
+                        const data = await transactionAPI.getAll(userId);
+                        const mappedTransactions = data
+                          .filter((tx: any) => tx.category !== 'HTML Import')
+                          .map((tx: any) => ({
+                            id: tx._id,
+                            date: new Date(tx.date).toISOString().split('T')[0],
+                            description: tx.description || 'No description',
+                            category: tx.category,
+                            amount: tx.type === 'expense' ? -tx.amount : tx.amount,
+                            autoCategorized: false,
+                            confidence: 0,
+                          }));
+                        setTransactions(mappedTransactions);
+                        
+                        setImportedCount(response.count);
+                        setImportSuccess(true);
+                      } else {
+                        alert('No transactions found in the HTML file. Please check the file format.');
+                      }
                     } catch (error: any) {
-                      console.error('Failed to upload HTML file:', error);
+                      console.error('Failed to parse HTML file:', error);
                       const errorMsg = error?.response?.data?.error || error?.message || 'Unknown error';
-                      alert(`Failed to upload HTML file: ${errorMsg}`);
+                      alert(`Failed to import transactions: ${errorMsg}`);
                     }
                   }}
                   disabled={!uploadedFile}
                 >
-                  Upload HTML File
+                  Parse & Import Transactions
                 </Button>
               </div>
             </div>
@@ -810,10 +817,10 @@ export const Transactions: React.FC = () => {
               
               <div style={{ textAlign: 'center' }}>
                 <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>
-                  Upload Successful!
+                  Import Successful!
                 </h3>
                 <p style={{ color: 'var(--color-text-secondary)' }}>
-                  HTML file uploaded and saved to database
+                  Successfully imported {importedCount} transaction{importedCount !== 1 ? 's' : ''} from Google Pay
                 </p>
               </div>
 
@@ -841,6 +848,10 @@ export const Transactions: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span>File Type:</span>
                   <span style={{ fontWeight: '600' }}>HTML</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span>Transactions Imported:</span>
+                  <span style={{ fontWeight: '600', color: 'var(--color-accent)' }}>{importedCount}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span>Status:</span>

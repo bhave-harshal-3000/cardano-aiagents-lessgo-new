@@ -12,7 +12,7 @@ import {
   Shield,
   Calendar,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
@@ -20,13 +20,16 @@ import { Modal } from '../components/Modal';
 import { TopBar } from '../components/TopBar';
 import { receiptTheme } from '../styles/receiptTheme';
 import { ReceiptBarcode, ReceiptDivider, ReceiptHeader } from '../components';
-import { savingsAPI } from '../services/api';
+import { savingsAPI, transactionAPI } from '../services/api';
 import { useWallet } from '../contexts/WalletContext';
 
 export const Dashboard: React.FC = () => {
+  const { userId } = useWallet();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showAIModal, setShowAIModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const stats = [
     {
@@ -73,13 +76,47 @@ export const Dashboard: React.FC = () => {
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  const recentTransactions = [
-    { id: 1, description: 'Whole Foods', amount: -87.45, type: 'expense', time: '2m ago' },
-    { id: 2, description: 'Salary Deposit', amount: 3500.00, type: 'income', time: '1h ago' },
-    { id: 3, description: 'Netflix', amount: -15.99, type: 'expense', time: '3h ago' },
-    { id: 4, description: 'Uber Ride', amount: -24.30, type: 'expense', time: '5h ago' },
-    { id: 5, description: 'Amazon', amount: -156.78, type: 'expense', time: '1d ago' },
-  ];
+  // Fetch recent transactions from database
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const allTransactions = await transactionAPI.getAll(userId);
+        
+        // Filter out HTML Import transactions and sort by date
+        const filtered = allTransactions
+          .filter((tx: any) => tx.category !== 'HTML Import')
+          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 5); // Get only the 5 most recent
+        
+        setRecentTransactions(filtered);
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [userId]);
+
+  // Helper function to calculate time ago
+  const getTimeAgo = (date: string) => {
+    const now = new Date();
+    const txDate = new Date(date);
+    const diffMs = now.getTime() - txDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
 
   return (
     <div style={{ ...receiptTheme.pageWrapper, ...receiptTheme.cssVariables }}>
@@ -470,15 +507,51 @@ export const Dashboard: React.FC = () => {
 };
 
 // Receipt Printer Component
-const ReceiptPrinter: React.FC<{ transactions: Array<{ id: number; description: string; amount: number; type: string; time: string }> }> = ({ transactions }) => {
+const ReceiptPrinter: React.FC<{ transactions: any[] }> = ({ transactions }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   React.useEffect(() => {
+    if (transactions.length === 0) return;
+    
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % transactions.length);
     }, 3000);
     return () => clearInterval(interval);
   }, [transactions.length]);
+
+  // Helper function to calculate time ago
+  const getTimeAgo = (date: string) => {
+    const now = new Date();
+    const txDate = new Date(date);
+    const diffMs = now.getTime() - txDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  if (transactions.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.3 }}
+        style={{ position: 'sticky', top: '100px' }}
+      >
+        <Card decorative>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px', textAlign: 'center' }}>
+            Recent Activity
+          </h3>
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#7f8c8d' }}>
+            No transactions yet. Connect your wallet and add your first transaction!
+          </div>
+        </Card>
+      </motion.div>
+    );
+  }
 
   const currentTx = transactions[currentIndex];
   const isIncome = currentTx.type === 'income';
@@ -713,7 +786,7 @@ const ReceiptPrinter: React.FC<{ transactions: Array<{ id: number; description: 
               <div style={{ fontSize: '12px', color: '#2c3e50', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ color: '#7f8c8d' }}>Time:</span>
-                  <span>{currentTx.time}</span>
+                  <span>{getTimeAgo(currentTx.date)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ color: '#7f8c8d' }}>Type:</span>

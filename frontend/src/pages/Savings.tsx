@@ -25,6 +25,11 @@ export const Savings: React.FC = () => {
   const [coinDrop, setCoinDrop] = useState(0);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalSaved: 0,
+    totalTarget: 0,
+    overallProgress: 0,
+  });
   const [formData, setFormData] = useState({
     name: '',
     target: '',
@@ -35,7 +40,7 @@ export const Savings: React.FC = () => {
   const { userId } = useWallet();
   const colors = ['#4a90e2', '#50c878', '#f5a623', '#9b59b6', '#e85d75', '#34a853'];
 
-  // Fetch savings goals from backend
+  // Fetch savings goals and stats from backend
   useEffect(() => {
     const fetchSavings = async () => {
       if (!userId) {
@@ -45,10 +50,13 @@ export const Savings: React.FC = () => {
       
       try {
         setLoading(true);
-        const data = await savingsAPI.getAll(userId);
+        const [goalsData, statsData] = await Promise.all([
+          savingsAPI.getAll(userId),
+          savingsAPI.getStats(userId)
+        ]);
         
-        if (data && data.length > 0) {
-          const mappedSavings = data.map((s: any, index: number) => ({
+        if (goalsData && goalsData.length > 0) {
+          const mappedSavings = goalsData.map((s: any, index: number) => ({
             id: s._id,
             name: s.goalName,
             target: s.targetAmount,
@@ -58,26 +66,15 @@ export const Savings: React.FC = () => {
           }));
           setSavingsGoals(mappedSavings);
         } else {
-          // Default savings goals if no data
-          setSavingsGoals([
-            {
-              id: '1',
-              name: 'Emergency Fund',
-              target: 10000,
-              current: 6500,
-              deadline: '2025-12-31',
-              color: '#4a90e2',
-            },
-            {
-              id: '2',
-              name: 'Vacation to Japan',
-              target: 5000,
-              current: 2800,
-              deadline: '2025-08-15',
-              color: '#50c878',
-            },
-          ]);
+          setSavingsGoals([]);
         }
+        
+        // Set stats from backend
+        setStats({
+          totalSaved: statsData.totalSaved,
+          totalTarget: statsData.totalTarget,
+          overallProgress: statsData.overallProgress,
+        });
       } catch (error) {
         console.error('Failed to fetch savings:', error);
         // Default savings goals on error
@@ -166,9 +163,8 @@ export const Savings: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const totalSaved = savingsGoals.reduce((sum, goal) => sum + goal.current, 0);
-  const totalTarget = savingsGoals.reduce((sum, goal) => sum + goal.target, 0);
-  const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
+  // Use stats from backend instead of local calculation
+  const { totalSaved, totalTarget, overallProgress } = stats;
 
   return (
     <div style={{ ...receiptTheme.pageWrapper, ...receiptTheme.cssVariables }}>
