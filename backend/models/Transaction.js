@@ -27,6 +27,14 @@ const transactionSchema = new mongoose.Schema({
   walletAddress: String,
   blockchainTxHash: String,
   tags: [String],
+  htmlFile: {
+    content: String,        // Stores the HTML content
+    fileName: String,        // Original file name
+    uploadDate: {
+      type: Date,
+      default: Date.now
+    }
+  },
 });
 
 transactionSchema.index({ userId: 1, date: -1 });

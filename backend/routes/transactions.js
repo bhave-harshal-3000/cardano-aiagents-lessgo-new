@@ -7,6 +7,7 @@ const router = express.Router();
 router.get('/:userId', async (req, res) => {
   try {
     const transactions = await Transaction.find({ userId: req.params.userId })
+      .select('-htmlFile.content') // Exclude HTML content from response
       .sort({ date: -1 });
     res.json(transactions);
   } catch (error) {
@@ -19,7 +20,14 @@ router.post('/', async (req, res) => {
   try {
     const transaction = new Transaction(req.body);
     await transaction.save();
-    res.status(201).json(transaction);
+    
+    // Return transaction without HTML content
+    const responseData = transaction.toObject();
+    if (responseData.htmlFile) {
+      delete responseData.htmlFile.content;
+    }
+    
+    res.status(201).json(responseData);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

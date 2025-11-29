@@ -19,141 +19,6 @@ interface Transaction {
   confidence?: number;
 }
 
-interface ParsedTransaction {
-  id: number;
-  date: string;
-  description: string;
-  amount: number;
-  category: string;
-  isDuplicate?: boolean;
-}
-
-// Parser function for Google Pay/Wallet HTML files
-const parseGPayHtml = async (file: File): Promise<ParsedTransaction[]> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      
-      // Validate it's a Google Takeout file
-      if (!content.includes('<html') || !content.toLowerCase().includes('google')) {
-        reject(new Error('Invalid file: This does not appear to be a Google Takeout HTML file'));
-        return;
-      }
-      
-      const transactions: ParsedTransaction[] = [];
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(content, 'text/html');
-      
-      // Try to find transaction patterns in the HTML
-      // This is a simplified parser - real Google Wallet HTML structure may vary
-      const rows = doc.querySelectorAll('tr, .transaction-row, .activity-row, div[class*="transaction"]');
-      
-      let txId = 1;
-      rows.forEach((row) => {
-        const text = row.textContent || '';
-        
-        // Look for currency patterns (e.g., $50.00, ₹100.00, €25.50)
-        const amountMatch = text.match(/[\$₹€£¥]\s*[\d,]+\.?\d*/g);
-        
-        // Look for date patterns (various formats)
-        const dateMatch = text.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}|[A-Z][a-z]{2}\s+\d{1,2},?\s+\d{4}/);
-        
-        if (amountMatch && amountMatch.length > 0) {
-          const amountStr = amountMatch[0].replace(/[\$₹€£¥,\s]/g, '');
-          const amount = parseFloat(amountStr);
-          
-          if (!isNaN(amount) && amount > 0) {
-            // Extract description (simplified - get text before amount)
-            const amountIndex = text.indexOf(amountMatch[0]);
-            let description = text.substring(0, amountIndex).trim();
-            
-            // Clean up description
-            description = description
-              .replace(/[\n\r\t]+/g, ' ')
-              .replace(/\s+/g, ' ')
-              .substring(0, 100)
-              .trim();
-            
-            if (description.length < 5) {
-              description = 'Payment';
-            }
-            
-            // Auto-categorize based on keywords
-            const category = categorizeByKeywords(description);
-            
-            transactions.push({
-              id: txId++,
-              date: dateMatch ? dateMatch[0] : new Date().toISOString().split('T')[0],
-              description,
-              amount: -amount, // Negative for expenses
-              category,
-              isDuplicate: false,
-            });
-          }
-        }
-      });
-      
-      // If no transactions found with above method, try alternate parsing
-      if (transactions.length === 0) {
-        // Look for any monetary values in the document
-        const allText = doc.body.textContent || '';
-        const amounts = allText.match(/[\$₹€£¥]\s*[\d,]+\.?\d+/g);
-        
-        if (amounts && amounts.length > 0) {
-          amounts.slice(0, 20).forEach((amt, idx) => {
-            const amountStr = amt.replace(/[\$₹€£¥,\s]/g, '');
-            const amount = parseFloat(amountStr);
-            
-            if (!isNaN(amount) && amount > 0) {
-              transactions.push({
-                id: idx + 1,
-                date: new Date().toISOString().split('T')[0],
-                description: `Google Pay Transaction ${idx + 1}`,
-                amount: -amount,
-                category: 'Shopping',
-                isDuplicate: false,
-              });
-            }
-          });
-        }
-      }
-      
-      resolve(transactions);
-    };
-    
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsText(file);
-  });
-};
-
-// Auto-categorize transactions based on keywords
-const categorizeByKeywords = (description: string): string => {
-  const lower = description.toLowerCase();
-  
-  if (lower.match(/restaurant|food|dining|cafe|coffee|pizza|burger|kitchen|eatery|meal/)) {
-    return 'Food & Dining';
-  }
-  if (lower.match(/uber|lyft|taxi|cab|transport|gas|fuel|parking|metro|train|bus/)) {
-    return 'Transportation';
-  }
-  if (lower.match(/movie|cinema|netflix|spotify|entertainment|game|concert|theatre/)) {
-    return 'Entertainment';
-  }
-  if (lower.match(/amazon|shop|store|mall|retail|purchase|buy|market/)) {
-    return 'Shopping';
-  }
-  if (lower.match(/electric|water|gas|bill|utility|internet|phone|mobile/)) {
-    return 'Bills & Utilities';
-  }
-  if (lower.match(/salary|income|payment received|deposit|transfer in/)) {
-    return 'Income';
-  }
-  
-  return 'Shopping'; // Default category
-};
-
 export const Transactions: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -161,8 +26,6 @@ export const Transactions: React.FC = () => {
   const [addOption, setAddOption] = useState<'select' | 'manual' | 'csv' | 'html'>('select');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string>('');
-  const [parsedTransactions, setParsedTransactions] = useState<any[]>([]);
-  const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
   const [showInstructions, setShowInstructions] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -190,16 +53,18 @@ export const Transactions: React.FC = () => {
       try {
         setLoading(true);
         const data = await transactionAPI.getAll(userId);
-        // Map backend data to frontend format
-        const mappedTransactions = data.map((tx: any) => ({
-          id: tx._id,
-          date: new Date(tx.date).toISOString().split('T')[0],
-          description: tx.description || 'No description',
-          category: tx.category,
-          amount: tx.type === 'expense' ? -tx.amount : tx.amount,
-          autoCategorized: false,
-          confidence: 0,
-        }));
+        // Filter out HTML Import transactions and map backend data to frontend format
+        const mappedTransactions = data
+          .filter((tx: any) => tx.category !== 'HTML Import')
+          .map((tx: any) => ({
+            id: tx._id,
+            date: new Date(tx.date).toISOString().split('T')[0],
+            description: tx.description || 'No description',
+            category: tx.category,
+            amount: tx.type === 'expense' ? -tx.amount : tx.amount,
+            autoCategorized: false,
+            confidence: 0,
+          }));
         setTransactions(mappedTransactions);
       } catch (error) {
         console.error('Failed to fetch transactions:', error);
@@ -512,8 +377,6 @@ export const Transactions: React.FC = () => {
             setAddOption('select');
             setUploadedFile(null);
             setFileError('');
-            setParsedTransactions([]);
-            setSelectedTxIds(new Set());
             setShowInstructions(false);
             setImportSuccess(false);
           }} 
@@ -700,26 +563,11 @@ export const Transactions: React.FC = () => {
                 <input
                   type="file"
                   accept=".html"
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
                       setUploadedFile(file);
                       setFileError('');
-                      setParsedTransactions([]);
-                      
-                      try {
-                        const parsed = await parseGPayHtml(file);
-                        if (parsed.length === 0) {
-                          setFileError('No transactions found in this file. Please check if this is the correct Google Takeout HTML file.');
-                        } else {
-                          setParsedTransactions(parsed);
-                          // Select all by default
-                          setSelectedTxIds(new Set(parsed.map(t => t.id)));
-                        }
-                      } catch (error: any) {
-                        setFileError(error.message);
-                        setUploadedFile(null);
-                      }
                     }
                   }}
                   style={{ display: 'none' }}
@@ -869,121 +717,6 @@ export const Transactions: React.FC = () => {
                 </AnimatePresence>
               </div>
 
-              {/* Preview Transactions */}
-              {parsedTransactions.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-elevated)',
-                    maxHeight: '300px',
-                    overflow: 'auto',
-                  }}
-                >
-                  <div style={{ padding: '16px', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, background: 'var(--color-bg-elevated)', zIndex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h4 style={{ fontWeight: '600', fontSize: '15px' }}>
-                        Found {parsedTransactions.length} transaction(s)
-                      </h4>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          onClick={() => setSelectedTxIds(new Set(parsedTransactions.map(t => t.id)))}
-                          style={{
-                            padding: '4px 12px',
-                            fontSize: '12px',
-                            border: '1px solid var(--color-border)',
-                            background: 'transparent',
-                            borderRadius: 'var(--radius-sm)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Select All
-                        </button>
-                        <button
-                          onClick={() => setSelectedTxIds(new Set())}
-                          style={{
-                            padding: '4px 12px',
-                            fontSize: '12px',
-                            border: '1px solid var(--color-border)',
-                            background: 'transparent',
-                            borderRadius: 'var(--radius-sm)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Deselect All
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div style={{ padding: '8px' }}>
-                    {parsedTransactions.map((tx) => (
-                      <div
-                        key={tx.id}
-                        onClick={() => {
-                          const newSet = new Set(selectedTxIds);
-                          if (newSet.has(tx.id)) {
-                            newSet.delete(tx.id);
-                          } else {
-                            newSet.add(tx.id);
-                          }
-                          setSelectedTxIds(newSet);
-                        }}
-                        style={{
-                          padding: '12px',
-                          marginBottom: '8px',
-                          border: `2px solid ${selectedTxIds.has(tx.id) ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                          borderRadius: 'var(--radius-sm)',
-                          background: selectedTxIds.has(tx.id) ? 'var(--color-primary-muted)' : 'var(--color-surface)',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{
-                            width: '20px',
-                            height: '20px',
-                            border: `2px solid ${selectedTxIds.has(tx.id) ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: selectedTxIds.has(tx.id) ? 'var(--color-primary)' : 'transparent',
-                            flexShrink: 0,
-                          }}>
-                            {selectedTxIds.has(tx.id) && <CheckCircle size={14} style={{ color: '#fff' }} />}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '4px' }}>
-                              <span style={{ fontWeight: '500', fontSize: '14px', wordBreak: 'break-word' }}>
-                                {tx.description}
-                              </span>
-                              <span style={{
-                                fontFamily: 'monospace',
-                                fontWeight: '600',
-                                fontSize: '14px',
-                                color: tx.amount < 0 ? 'var(--color-danger)' : 'var(--color-accent)',
-                                marginLeft: '12px',
-                                flexShrink: 0,
-                              }}>
-                                {tx.amount < 0 ? '-' : '+'}${Math.abs(tx.amount).toFixed(2)}
-                              </span>
-                            </div>
-                            <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                              <span>{tx.date}</span>
-                              <span>•</span>
-                              <span>{tx.category}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                 <Button variant="outline" fullWidth onClick={() => setAddOption('select')}>
@@ -992,14 +725,53 @@ export const Transactions: React.FC = () => {
                 <Button 
                   variant="primary" 
                   fullWidth 
-                  onClick={() => {
-                    if (selectedTxIds.size > 0) {
+                  onClick={async () => {
+                    if (!uploadedFile || !userId) return;
+                    
+                    try {
+                      // Read HTML file content
+                      const htmlContent = await uploadedFile.text();
+                      
+                      // Create a single transaction record with the HTML file
+                      await transactionAPI.create({
+                        userId,
+                        type: 'expense',
+                        amount: 0,
+                        category: 'HTML Import',
+                        description: `HTML file: ${uploadedFile.name}`,
+                        date: new Date(),
+                        htmlFile: {
+                          content: htmlContent,
+                          fileName: uploadedFile.name,
+                          uploadDate: new Date(),
+                        },
+                      });
+                      
+                      // Refresh transactions list (filter out HTML Import)
+                      const data = await transactionAPI.getAll(userId);
+                      const mappedTransactions = data
+                        .filter((tx: any) => tx.category !== 'HTML Import')
+                        .map((tx: any) => ({
+                          id: tx._id,
+                          date: new Date(tx.date).toISOString().split('T')[0],
+                          description: tx.description || 'No description',
+                          category: tx.category,
+                          amount: tx.type === 'expense' ? -tx.amount : tx.amount,
+                          autoCategorized: false,
+                          confidence: 0,
+                        }));
+                      setTransactions(mappedTransactions);
+                      
                       setImportSuccess(true);
+                    } catch (error: any) {
+                      console.error('Failed to upload HTML file:', error);
+                      const errorMsg = error?.response?.data?.error || error?.message || 'Unknown error';
+                      alert(`Failed to upload HTML file: ${errorMsg}`);
                     }
                   }}
-                  disabled={selectedTxIds.size === 0}
+                  disabled={!uploadedFile}
                 >
-                  Import {selectedTxIds.size > 0 ? `${selectedTxIds.size} Transaction${selectedTxIds.size > 1 ? 's' : ''}` : ''}
+                  Upload HTML File
                 </Button>
               </div>
             </div>
@@ -1031,10 +803,10 @@ export const Transactions: React.FC = () => {
               
               <div style={{ textAlign: 'center' }}>
                 <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>
-                  Import Successful!
+                  Upload Successful!
                 </h3>
                 <p style={{ color: 'var(--color-text-secondary)' }}>
-                  {selectedTxIds.size} transaction{selectedTxIds.size > 1 ? 's' : ''} imported successfully
+                  HTML file uploaded and saved to database
                 </p>
               </div>
 
@@ -1049,32 +821,27 @@ export const Transactions: React.FC = () => {
                 fontSize: '13px',
               }}>
                 <div style={{ textAlign: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px dashed var(--color-border)' }}>
-                  <div style={{ fontSize: '16px', fontWeight: '700' }}>IMPORT RECEIPT</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700' }}>UPLOAD RECEIPT</div>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
                     {new Date().toLocaleString()}
                   </div>
                 </div>
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>Transactions Imported:</span>
-                  <span style={{ fontWeight: '600' }}>{selectedTxIds.size}</span>
+                  <span>File Name:</span>
+                  <span style={{ fontWeight: '600' }}>{uploadedFile?.name}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>Source File:</span>
-                  <span style={{ fontWeight: '600' }}>Google Pay HTML</span>
+                  <span>File Type:</span>
+                  <span style={{ fontWeight: '600' }}>HTML</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>Total Amount:</span>
-                  <span style={{ fontWeight: '600' }}>
-                    ${parsedTransactions
-                      .filter(tx => selectedTxIds.has(tx.id))
-                      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0)
-                      .toFixed(2)}
-                  </span>
+                  <span>Status:</span>
+                  <span style={{ fontWeight: '600', color: 'var(--color-accent)' }}>Saved to Database</span>
                 </div>
                 
                 <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px dashed var(--color-border)', textAlign: 'center', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                  ✓ All transactions auto-categorized by AI
+                  ✓ HTML file stored in MongoDB
                 </div>
               </div>
 
@@ -1086,8 +853,6 @@ export const Transactions: React.FC = () => {
                   setAddOption('select');
                   setImportSuccess(false);
                   setUploadedFile(null);
-                  setParsedTransactions([]);
-                  setSelectedTxIds(new Set());
                 }}
               >
                 Done

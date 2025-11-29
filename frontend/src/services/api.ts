@@ -48,6 +48,11 @@ export const transactionAPI = {
     category: string;
     description?: string;
     date?: Date;
+    htmlFile?: {
+      content: string;
+      fileName: string;
+      uploadDate: Date;
+    };
   }) =>
     apiCall('/transactions', {
       method: 'POST',

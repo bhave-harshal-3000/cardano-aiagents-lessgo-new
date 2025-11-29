@@ -250,8 +250,8 @@ export const Landing: React.FC = () => {
       color: '#000000',
     },
     statsSection: {
-      padding: '80px 40px',
-      background: '#fff',
+      padding: '100px 40px',
+      background: 'linear-gradient(180deg, #fafafa 0%, #ffffff 100%)',
       borderTop: '3px double rgba(0,0,0,0.2)',
       borderBottom: '3px double rgba(0,0,0,0.2)',
       position: 'relative' as const,
@@ -260,24 +260,28 @@ export const Landing: React.FC = () => {
     },
     statsGrid: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: '48px',
-      maxWidth: '900px',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+      gap: '32px',
+      maxWidth: '1100px',
       margin: '0 auto',
       textAlign: 'center' as const,
       color: '#000000',
     },
     statNumber: {
-      fontSize: '48px',
-      fontWeight: 'bold' as const,
-      marginBottom: '8px',
+      fontSize: '64px',
+      fontWeight: '900' as const,
+      marginBottom: '12px',
       color: '#000000',
+      lineHeight: '1',
+      fontFamily: 'monospace',
     },
     statLabel: {
-      fontSize: '14px',
-      opacity: 0.6,
-      letterSpacing: '1px',
+      fontSize: '12px',
+      opacity: 0.7,
+      letterSpacing: '2px',
       color: '#000000',
+      fontWeight: '600' as const,
+      marginTop: '8px',
     },
     footer: {
       padding: '60px 40px 40px',
@@ -549,49 +553,89 @@ export const Landing: React.FC = () => {
       >
         <div style={receiptStyles.statsGrid}>
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            whileHover={{ scale: 1.05, y: -8 }}
+            style={{
+              padding: '40px 24px',
+              background: '#fff',
+              border: '2px dashed rgba(0,0,0,0.15)',
+              borderRadius: '12px',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            }}
           >
             <ScanningLight>
               <div style={receiptStyles.statNumber}>{count}%</div>
+              <div style={{ height: '2px', width: '60px', background: 'rgba(0,0,0,0.2)', margin: '16px auto' }}></div>
               <div style={receiptStyles.statLabel}>AVERAGE SAVINGS</div>
             </ScanningLight>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+            transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            whileHover={{ scale: 1.05, y: -8 }}
+            style={{
+              padding: '40px 24px',
+              background: '#fff',
+              border: '2px dashed rgba(0,0,0,0.15)',
+              borderRadius: '12px',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            }}
           >
             <ScanningLight>
               <div style={receiptStyles.statNumber}>$0</div>
+              <div style={{ height: '2px', width: '60px', background: 'rgba(0,0,0,0.2)', margin: '16px auto' }}></div>
               <div style={receiptStyles.statLabel}>SETUP COST</div>
             </ScanningLight>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            whileHover={{ scale: 1.05, y: -8 }}
+            style={{
+              padding: '40px 24px',
+              background: '#fff',
+              border: '2px dashed rgba(0,0,0,0.15)',
+              borderRadius: '12px',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            }}
           >
             <ScanningLight>
               <div style={receiptStyles.statNumber}>24/7</div>
+              <div style={{ height: '2px', width: '60px', background: 'rgba(0,0,0,0.2)', margin: '16px auto' }}></div>
               <div style={receiptStyles.statLabel}>AI MONITORING</div>
             </ScanningLight>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            transition={{ duration: 0.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            whileHover={{ scale: 1.05, y: -8 }}
+            style={{
+              padding: '40px 24px',
+              background: '#fff',
+              border: '2px dashed rgba(0,0,0,0.15)',
+              borderRadius: '12px',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            }}
           >
             <ScanningLight>
               <div style={receiptStyles.statNumber}>∞</div>
+              <div style={{ height: '2px', width: '60px', background: 'rgba(0,0,0,0.2)', margin: '16px auto' }}></div>
               <div style={receiptStyles.statLabel}>BLOCKCHAIN SECURITY</div>
             </ScanningLight>
           </motion.div>
