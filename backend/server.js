@@ -40,12 +40,14 @@ import transactionRoutes from './routes/transactions.js';
 import userRoutes from './routes/users.js';
 import budgetRoutes from './routes/budgets.js';
 import savingsRoutes from './routes/savings.js';
+import insightsRoutes from './routes/insights.js';
 
 // Use Routes
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/savings', savingsRoutes);
+app.use('/api/insights', insightsRoutes);
 
 // Error Handler
 app.use((err, req, res, next) => {
