@@ -1,13 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Filter, Edit2, Trash2, Calendar, Upload, FileText, ChevronDown, ChevronUp, CheckCircle, AlertCircle } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Modal } from '../components/Modal';
 import { TopBar } from '../components/TopBar';
-import { receiptTheme } from '../styles/receiptTheme';
-import { ReceiptBarcode, ReceiptDivider, ReceiptHeader } from '../components';
+import { transactionAPI } from '../services/api';
+import { useWallet } from '../contexts/WalletContext';
 
 interface Transaction {
   id: string;
@@ -165,59 +165,104 @@ export const Transactions: React.FC = () => {
   const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
   const [showInstructions, setShowInstructions] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [transactions] = useState<Transaction[]>([
-    {
-      id: '1',
-      date: '2024-11-28',
-      description: 'Whole Foods Market',
-      category: 'Food & Dining',
-      amount: -87.45,
-      autoCategorized: true,
-      confidence: 95,
-    },
-    {
-      id: '2',
-      date: '2024-11-27',
-      description: 'Uber Ride',
-      category: 'Transportation',
-      amount: -24.30,
-      autoCategorized: true,
-      confidence: 98,
-    },
-    {
-      id: '3',
-      date: '2024-11-26',
-      description: 'Netflix Subscription',
-      category: 'Entertainment',
-      amount: -15.99,
-      autoCategorized: true,
-      confidence: 100,
-    },
-    {
-      id: '4',
-      date: '2024-11-25',
-      description: 'Amazon Purchase',
-      category: 'Shopping',
-      amount: -156.78,
-    },
-    {
-      id: '5',
-      date: '2024-11-24',
-      description: 'Salary Deposit',
-      category: 'Income',
-      amount: 3500.00,
-    },
-    {
-      id: '6',
-      date: '2024-11-23',
-      description: 'Electric Bill',
-      category: 'Bills & Utilities',
-      amount: -124.50,
-      autoCategorized: true,
-      confidence: 88,
-    },
-  ]);
+  // Form state for manual transaction entry
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    description: '',
+    category: 'Food & Dining',
+    amount: '',
+    type: 'expense' as 'income' | 'expense',
+  });
+
+  const { userId } = useWallet();
+
+  // Fetch transactions from backend
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        const data = await transactionAPI.getAll(userId);
+        // Map backend data to frontend format
+        const mappedTransactions = data.map((tx: any) => ({
+          id: tx._id,
+          date: new Date(tx.date).toISOString().split('T')[0],
+          description: tx.description || 'No description',
+          category: tx.category,
+          amount: tx.type === 'expense' ? -tx.amount : tx.amount,
+          autoCategorized: false,
+          confidence: 0,
+        }));
+        setTransactions(mappedTransactions);
+      } catch (error) {
+        console.error('Failed to fetch transactions:', error);
+        // Keep empty array on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [userId]);
+
+  // Handler to add new transaction
+  const handleAddTransaction = async () => {
+    try {
+      if (!userId) {
+        alert('Please connect your wallet first');
+        return;
+      }
+      
+      const amount = parseFloat(formData.amount);
+      if (!formData.description || isNaN(amount)) {
+        alert('Please fill in all fields correctly');
+        return;
+      }
+
+      const newTransaction = await transactionAPI.create({
+        userId,
+        type: formData.type,
+        amount: Math.abs(amount),
+        category: formData.category,
+        description: formData.description,
+        date: new Date(formData.date),
+      });
+
+      // Add to local state
+      const mappedTransaction = {
+        id: newTransaction._id,
+        date: formData.date,
+        description: formData.description,
+        category: formData.category,
+        amount: formData.type === 'expense' ? -Math.abs(amount) : Math.abs(amount),
+        autoCategorized: false,
+        confidence: 0,
+      };
+      
+      setTransactions([mappedTransaction, ...transactions]);
+      
+      // Reset form and close modal
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        description: '',
+        category: 'Food & Dining',
+        amount: '',
+        type: 'expense',
+      });
+      setShowAddModal(false);
+      setAddOption('select');
+    } catch (error) {
+      console.error('Failed to add transaction:', error);
+      alert('Failed to add transaction. Please try again.');
+    }
+  };
 
   const categories = ['all', 'Food & Dining', 'Transportation', 'Entertainment', 'Shopping', 'Bills & Utilities', 'Income'];
 
@@ -342,8 +387,21 @@ export const Transactions: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                        Loading transactions...
+                      </td>
+                    </tr>
+                  ) : filteredTransactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                        No transactions found. Click "Add Transaction" to create one.
+                      </td>
+                    </tr>
+                  ) : null}
                   <AnimatePresence>
-                    {filteredTransactions.map((transaction, index) => (
+                    {!loading && filteredTransactions.map((transaction, index) => (
                       <motion.tr
                         key={transaction.id}
                         initial={{ opacity: 0, x: -20 }}
@@ -551,21 +609,49 @@ export const Transactions: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+                  Type
+                </label>
+                <select 
+                  style={{ width: '100%' }} 
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'income' | 'expense' })}
+                >
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
                   Date
                 </label>
-                <input type="date" style={{ width: '100%' }} defaultValue={new Date().toISOString().split('T')[0]} />
+                <input 
+                  type="date" 
+                  style={{ width: '100%' }} 
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
                   Description
                 </label>
-                <input type="text" placeholder="e.g., Grocery shopping" style={{ width: '100%' }} />
+                <input 
+                  type="text" 
+                  placeholder="e.g., Grocery shopping" 
+                  style={{ width: '100%' }}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
                   Category
                 </label>
-                <select style={{ width: '100%' }}>
+                <select 
+                  style={{ width: '100%' }}
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                >
                   {categories.filter(c => c !== 'all').map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -577,16 +663,20 @@ export const Transactions: React.FC = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
                   Amount
                 </label>
-                <input type="number" placeholder="0.00" style={{ width: '100%' }} step="0.01" />
+                <input 
+                  type="number" 
+                  placeholder="0.00" 
+                  style={{ width: '100%' }} 
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                />
               </div>
               <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                 <Button variant="outline" fullWidth onClick={() => setAddOption('select')}>
                   Back
                 </Button>
-                <Button variant="primary" fullWidth onClick={() => {
-                  setShowAddModal(false);
-                  setAddOption('select');
-                }}>
+                <Button variant="primary" fullWidth onClick={handleAddTransaction}>
                   Add Transaction
                 </Button>
               </div>

@@ -6,8 +6,8 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Modal } from '../components/Modal';
 import { TopBar } from '../components/TopBar';
-import { receiptTheme } from '../styles/receiptTheme';
-import { ReceiptBarcode, ReceiptHeader } from '../components';
+import { savingsAPI } from '../services/api';
+import { useWallet } from '../contexts/WalletContext';
 
 interface SavingsGoal {
   id: string;
@@ -21,41 +21,139 @@ interface SavingsGoal {
 export const Savings: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [coinDrop, setCoinDrop] = useState(0);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    name: '',
+    target: '',
+    current: '',
+    deadline: new Date().toISOString().split('T')[0],
+  });
 
-  const [savingsGoals] = useState<SavingsGoal[]>([
-    {
-      id: '1',
-      name: 'Emergency Fund',
-      target: 10000,
-      current: 6500,
-      deadline: '2025-12-31',
-      color: '#4a90e2',
-    },
-    {
-      id: '2',
-      name: 'Vacation to Japan',
-      target: 5000,
-      current: 2800,
-      deadline: '2025-08-15',
-      color: '#50c878',
-    },
-    {
-      id: '3',
-      name: 'New Laptop',
-      target: 2000,
-      current: 1650,
-      deadline: '2025-06-01',
-      color: '#f5a623',
-    },
-    {
-      id: '4',
-      name: 'Investment Portfolio',
-      target: 25000,
-      current: 8900,
-      deadline: '2026-12-31',
-      color: '#9b59b6',
-    },
-  ]);
+  const { userId } = useWallet();
+  const colors = ['#4a90e2', '#50c878', '#f5a623', '#9b59b6', '#e85d75', '#34a853'];
+
+  // Fetch savings goals from backend
+  useEffect(() => {
+    const fetchSavings = async () => {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        const data = await savingsAPI.getAll(userId);
+        
+        if (data && data.length > 0) {
+          const mappedSavings = data.map((s: any, index: number) => ({
+            id: s._id,
+            name: s.goalName,
+            target: s.targetAmount,
+            current: s.currentAmount,
+            deadline: new Date(s.deadline).toISOString().split('T')[0],
+            color: colors[index % colors.length],
+          }));
+          setSavingsGoals(mappedSavings);
+        } else {
+          // Default savings goals if no data
+          setSavingsGoals([
+            {
+              id: '1',
+              name: 'Emergency Fund',
+              target: 10000,
+              current: 6500,
+              deadline: '2025-12-31',
+              color: '#4a90e2',
+            },
+            {
+              id: '2',
+              name: 'Vacation to Japan',
+              target: 5000,
+              current: 2800,
+              deadline: '2025-08-15',
+              color: '#50c878',
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch savings:', error);
+        // Default savings goals on error
+        setSavingsGoals([
+          {
+            id: '1',
+            name: 'Emergency Fund',
+            target: 10000,
+            current: 6500,
+            deadline: '2025-12-31',
+            color: '#4a90e2',
+          },
+          {
+            id: '2',
+            name: 'Vacation to Japan',
+            target: 5000,
+            current: 2800,
+            deadline: '2025-08-15',
+            color: '#50c878',
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSavings();
+  }, [userId]);
+
+  // Handler to add new savings goal
+  const handleAddGoal = async () => {
+    try {
+      if (!userId) {
+        alert('Please connect your wallet first');
+        return;
+      }
+      
+      const target = parseFloat(formData.target);
+      const current = parseFloat(formData.current) || 0;
+      
+      if (!formData.name || isNaN(target) || !formData.deadline) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      const newGoal = await savingsAPI.create({
+        userId,
+        goalName: formData.name,
+        targetAmount: target,
+        currentAmount: current,
+        deadline: new Date(formData.deadline),
+      });
+
+      // Add to local state
+      const mappedGoal = {
+        id: newGoal._id,
+        name: newGoal.goalName,
+        target: newGoal.targetAmount,
+        current: newGoal.currentAmount,
+        deadline: new Date(newGoal.deadline).toISOString().split('T')[0],
+        color: colors[savingsGoals.length % colors.length],
+      };
+      
+      setSavingsGoals([...savingsGoals, mappedGoal]);
+      
+      // Reset form and close modal
+      setFormData({
+        name: '',
+        target: '',
+        current: '',
+        deadline: new Date().toISOString().split('T')[0],
+      });
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Failed to add savings goal:', error);
+      alert('Failed to add savings goal. Please try again.');
+    }
+  };
 
   // Random coin drop animation
   useEffect(() => {
@@ -68,7 +166,7 @@ export const Savings: React.FC = () => {
 
   const totalSaved = savingsGoals.reduce((sum, goal) => sum + goal.current, 0);
   const totalTarget = savingsGoals.reduce((sum, goal) => sum + goal.target, 0);
-  const overallProgress = (totalSaved / totalTarget) * 100;
+  const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
   return (
     <div style={{ ...receiptTheme.pageWrapper, ...receiptTheme.cssVariables }}>
@@ -127,8 +225,20 @@ export const Savings: React.FC = () => {
           </motion.div>
 
           {/* Savings Goals List */}
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '48px', color: 'var(--color-text-secondary)' }}>
+              Loading savings goals...
+            </div>
+          ) : savingsGoals.length === 0 ? (
+            <Card>
+              <div style={{ textAlign: 'center', padding: '48px', color: 'var(--color-text-secondary)' }}>
+                No savings goals yet. Click "New Goal" to create one.
+              </div>
+            </Card>
+          ) : null}
+          
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {savingsGoals.map((goal, index) => {
+            {!loading && savingsGoals.map((goal, index) => {
               const progress = (goal.current / goal.target) * 100;
               const daysLeft = Math.ceil(
                 (new Date(goal.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
@@ -302,37 +412,76 @@ export const Savings: React.FC = () => {
       </div>
 
       {/* Add Goal Modal */}
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Create Savings Goal">
+      <Modal isOpen={showAddModal} onClose={() => {
+        setShowAddModal(false);
+        setFormData({
+          name: '',
+          target: '',
+          current: '',
+          deadline: new Date().toISOString().split('T')[0],
+        });
+      }} title="Create Savings Goal">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
               Goal Name
             </label>
-            <input type="text" placeholder="e.g., Emergency Fund" style={{ width: '100%' }} />
+            <input 
+              type="text" 
+              placeholder="e.g., Emergency Fund" 
+              style={{ width: '100%' }}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
               Target Amount
             </label>
-            <input type="number" placeholder="10000" style={{ width: '100%' }} />
+            <input 
+              type="number" 
+              placeholder="10000" 
+              style={{ width: '100%' }}
+              value={formData.target}
+              onChange={(e) => setFormData({ ...formData, target: e.target.value })}
+            />
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
-              Current Amount
+              Current Amount (Optional)
             </label>
-            <input type="number" placeholder="0" style={{ width: '100%' }} />
+            <input 
+              type="number" 
+              placeholder="0" 
+              style={{ width: '100%' }}
+              value={formData.current}
+              onChange={(e) => setFormData({ ...formData, current: e.target.value })}
+            />
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
               Target Date
             </label>
-            <input type="date" style={{ width: '100%' }} />
+            <input 
+              type="date" 
+              style={{ width: '100%' }}
+              value={formData.deadline}
+              onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+            />
           </div>
           <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-            <Button variant="outline" fullWidth onClick={() => setShowAddModal(false)}>
+            <Button variant="outline" fullWidth onClick={() => {
+              setShowAddModal(false);
+              setFormData({
+                name: '',
+                target: '',
+                current: '',
+                deadline: new Date().toISOString().split('T')[0],
+              });
+            }}>
               Cancel
             </Button>
-            <Button variant="primary" fullWidth onClick={() => setShowAddModal(false)}>
+            <Button variant="primary" fullWidth onClick={handleAddGoal}>
               Create Goal
             </Button>
           </div>

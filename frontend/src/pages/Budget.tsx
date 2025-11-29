@@ -1,12 +1,12 @@
 import { motion } from 'framer-motion';
 import { Sparkles, TrendingUp, CheckCircle, Shield } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatedPage } from '../components/AnimatedPage';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { TopBar } from '../components/TopBar';
-import { receiptTheme } from '../styles/receiptTheme';
-import { ReceiptBarcode, ReceiptHeader } from '../components';
+import { budgetAPI } from '../services/api';
+import { useWallet } from '../contexts/WalletContext';
 
 interface BudgetCategory {
   name: string;
@@ -16,15 +16,55 @@ interface BudgetCategory {
 }
 
 export const Budget: React.FC = () => {
-  const [budgets, setBudgets] = useState<BudgetCategory[]>([
-    { name: 'Food & Dining', current: 842, limit: 1000 },
-    { name: 'Transportation', current: 425, limit: 500 },
-    { name: 'Entertainment', current: 380, limit: 400 },
-    { name: 'Shopping', current: 650, limit: 800 },
-    { name: 'Bills & Utilities', current: 550, limit: 600 },
-  ]);
-
+  const [budgets, setBudgets] = useState<BudgetCategory[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const { userId } = useWallet();
+
+  // Fetch budgets from backend
+  useEffect(() => {
+    const fetchBudgets = async () => {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        const data = await budgetAPI.getAll(userId);
+        
+        if (data && data.length > 0) {
+          const mappedBudgets = data.map((b: any) => ({
+            name: b.category,
+            current: b.spent,
+            limit: b.limit,
+            suggested: undefined,
+          }));
+          setBudgets(mappedBudgets);
+        } else {
+          // If no data from API, show default budgets
+          setBudgets([
+            { name: 'Food & Dining', current: 842, limit: 1000 },
+            { name: 'Transportation', current: 325, limit: 500 },
+            { name: 'Shopping', current: 450, limit: 800 },
+          ]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch budgets:', error);
+        // Set default budgets if fetch fails or no data
+        setBudgets([
+          { name: 'Food & Dining', current: 842, limit: 1000 },
+          { name: 'Transportation', current: 325, limit: 500 },
+          { name: 'Shopping', current: 450, limit: 800 },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBudgets();
+  }, [userId]);
 
   const handleGetSuggestions = () => {
     // Simulate AI suggestions
@@ -36,14 +76,43 @@ export const Budget: React.FC = () => {
     setShowSuggestions(true);
   };
 
-  const handleApplySuggestions = () => {
-    const applied = budgets.map((b) => ({
-      ...b,
-      limit: b.suggested || b.limit,
-      suggested: undefined,
-    }));
-    setBudgets(applied);
-    setShowSuggestions(false);
+  const handleApplySuggestions = async () => {
+    try {
+      if (!userId) {
+        alert('Please connect your wallet first');
+        return;
+      }
+      
+      // Update each budget with the suggested limit
+      const updatePromises = budgets.map(async (b) => {
+        if (b.suggested) {
+          // Check if budget exists in DB, if not create it
+          try {
+            await budgetAPI.create({
+              userId,
+              category: b.name,
+              limit: b.suggested,
+              period: 'monthly',
+            });
+          } catch (error) {
+            console.error(`Failed to update budget for ${b.name}:`, error);
+          }
+        }
+      });
+
+      await Promise.all(updatePromises);
+
+      const applied = budgets.map((b) => ({
+        ...b,
+        limit: b.suggested || b.limit,
+        suggested: undefined,
+      }));
+      setBudgets(applied);
+      setShowSuggestions(false);
+    } catch (error) {
+      console.error('Failed to apply suggestions:', error);
+      alert('Failed to save budget suggestions. Please try again.');
+    }
   };
 
   return (
@@ -100,8 +169,20 @@ export const Budget: React.FC = () => {
           )}
         </motion.div>
 
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--color-text-secondary)' }}>
+            Loading budgets...
+          </div>
+        ) : budgets.length === 0 ? (
+          <Card>
+            <div style={{ textAlign: 'center', padding: '48px', color: 'var(--color-text-secondary)' }}>
+              No budgets found. Click "Get AI Suggestion" to create optimized budgets.
+            </div>
+          </Card>
+        ) : null}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {budgets.map((budget, index) => (
+          {!loading && budgets.map((budget, index) => (
             <motion.div
               key={budget.name}
               initial={{ opacity: 0, y: 20 }}

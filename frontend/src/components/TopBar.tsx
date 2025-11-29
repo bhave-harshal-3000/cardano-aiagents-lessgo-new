@@ -2,15 +2,17 @@ import { motion } from 'framer-motion';
 import { Menu, Wallet, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useWallet } from '../contexts/WalletContext';
 
 interface TopBarProps {
   walletAddress?: string;
   onWalletConnect?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ walletAddress, onWalletConnect }) => {
+export const TopBar: React.FC<TopBarProps> = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { walletAddress, connectWallet, isConnecting } = useWallet();
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard' },
@@ -113,7 +115,8 @@ export const TopBar: React.FC<TopBarProps> = ({ walletAddress, onWalletConnect }
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={onWalletConnect}
+                onClick={connectWallet}
+                disabled={isConnecting}
                 style={{
                   padding: '8px 16px',
                   background: '#000000',
@@ -122,14 +125,15 @@ export const TopBar: React.FC<TopBarProps> = ({ walletAddress, onWalletConnect }
                   fontSize: '14px',
                   fontWeight: '500',
                   border: 'none',
-                  cursor: 'pointer',
+                  cursor: isConnecting ? 'wait' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
+                  opacity: isConnecting ? 0.7 : 1,
                 }}
               >
                 <Wallet size={16} />
-                Connect Wallet
+                {isConnecting ? 'Connecting...' : 'Connect Wallet'}
               </motion.button>
             )}
 
