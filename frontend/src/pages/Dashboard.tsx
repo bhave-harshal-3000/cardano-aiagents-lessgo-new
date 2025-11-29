@@ -168,7 +168,7 @@ export const Dashboard: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card hover>
+                <Card hover decorative>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div
@@ -225,7 +225,7 @@ export const Dashboard: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <Card>
+            <Card decorative>
               <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '24px' }}>
                 Spending by Category
               </h3>
@@ -347,7 +347,7 @@ export const Dashboard: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <Card>
+          <Card decorative>
             <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '24px' }}>
               6-Month Spending Trend
             </h3>
@@ -479,7 +479,7 @@ const ReceiptPrinter: React.FC<{ transactions: Array<{ id: number; description: 
       transition={{ delay: 0.3 }}
       style={{ position: 'sticky', top: '100px' }}
     >
-      <Card>
+      <Card decorative>
         <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '24px', textAlign: 'center' }}>
           Recent Activity
         </h3>

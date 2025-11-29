@@ -81,6 +81,7 @@ export const TopBar: React.FC<TopBarProps> = ({ walletAddress, onWalletConnect }
               <Link
                 key={item.path}
                 to={item.path}
+                className="nav-link"
                 style={{
                   padding: '8px 16px',
                   borderRadius: 'var(--radius-sm)',
@@ -89,23 +90,10 @@ export const TopBar: React.FC<TopBarProps> = ({ walletAddress, onWalletConnect }
                   color: isActive(item.path) ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                   background: isActive(item.path) ? 'var(--color-surface)' : 'transparent',
                   position: 'relative',
+                  overflow: 'hidden',
                 }}
               >
                 {item.label}
-                {isActive(item.path) && (
-                  <motion.div
-                    layoutId="activeTab"
-                    style={{
-                      position: 'absolute',
-                      bottom: '-1px',
-                      left: '16px',
-                      right: '16px',
-                      height: '2px',
-                      background: 'var(--color-primary)',
-                    }}
-                    transition={{ duration: 0.3 }}
-                  />
-                )}
               </Link>
             ))}
           </div>
@@ -204,6 +192,36 @@ export const TopBar: React.FC<TopBarProps> = ({ walletAddress, onWalletConnect }
       </div>
 
       <style>{`
+        .nav-link::before,
+        .nav-link::after {
+          content: "";
+          position: absolute;
+          width: 0;
+          height: 2px;
+          background: var(--color-primary);
+          transition: all 0.5s;
+        }
+
+        .nav-link::before {
+          top: 0;
+          left: 0;
+        }
+
+        .nav-link::after {
+          bottom: 0;
+          right: 0;
+        }
+
+        .nav-link:hover::before {
+          width: 100%;
+          transition: width 0.25s ease-in-out;
+        }
+
+        .nav-link:hover::after {
+          width: 100%;
+          transition: width 0.25s ease-in-out 0.25s;
+        }
+
         @media (max-width: 768px) {
           .desktop-nav {
             display: none !important;

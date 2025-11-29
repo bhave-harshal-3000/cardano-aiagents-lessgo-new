@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import React from 'react';
+import { CornerAccent } from './FintechDecor';
 
 interface CardProps {
   children: React.ReactNode;
@@ -7,6 +8,7 @@ interface CardProps {
   hover?: boolean;
   onClick?: () => void;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  decorative?: boolean;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -15,6 +17,7 @@ export const Card: React.FC<CardProps> = ({
   hover = false,
   onClick,
   padding = 'md',
+  decorative = false,
 }) => {
   const paddingMap = {
     none: '0',
@@ -32,6 +35,7 @@ export const Card: React.FC<CardProps> = ({
         border: '1px solid var(--color-border)',
         padding: paddingMap[padding],
         cursor: onClick ? 'pointer' : 'default',
+        position: 'relative',
       }}
       className={className}
       whileHover={hover ? { 
@@ -43,6 +47,12 @@ export const Card: React.FC<CardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
+      {decorative && (
+        <>
+          <CornerAccent corner="tr" />
+          <CornerAccent corner="bl" />
+        </>
+      )}
       {children}
     </motion.div>
   );

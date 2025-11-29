@@ -93,7 +93,7 @@ export const Savings: React.FC = () => {
             </div>
 
             {/* Overall Stats */}
-            <Card>
+            <Card decorative>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
                 <div>
                   <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
@@ -138,7 +138,7 @@ export const Savings: React.FC = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card>
+                  <Card decorative>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                       <div>
                         <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>{goal.name}</h3>
@@ -199,7 +199,7 @@ export const Savings: React.FC = () => {
             transition={{ delay: 0.5 }}
             style={{ marginTop: '24px' }}
           >
-            <Card>
+            <Card decorative>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 <div
                   style={{
@@ -234,7 +234,7 @@ export const Savings: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
           >
-            <Card>
+            <Card decorative>
               <div style={{ position: 'relative', height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 {/* Piggy Bank with Breathing Animation */}
                 <motion.div

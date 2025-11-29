@@ -42,29 +42,34 @@ export const Modal: React.FC<ModalProps> = ({
             }}
             onClick={onClose}
           />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+          <div
             style={{
               position: 'fixed',
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
+              zIndex: 1000,
               width: widthMap[width],
               maxWidth: '90vw',
-              maxHeight: '90vh',
-              background: 'var(--color-bg-elevated)',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--color-border)',
-              boxShadow: 'var(--shadow-lg)',
-              zIndex: 1000,
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
             }}
           >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              style={{
+                width: '100%',
+                maxHeight: '90vh',
+                background: 'var(--color-bg-elevated)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-border)',
+                boxShadow: 'var(--shadow-lg)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
             {title && (
               <div
                 style={{
@@ -95,6 +100,7 @@ export const Modal: React.FC<ModalProps> = ({
               {children}
             </div>
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

@@ -3,3 +3,4 @@ export { Button } from './Button';
 export { Card } from './Card';
 export { Modal } from './Modal';
 export { TopBar } from './TopBar';
+export { FintechDecor, CornerAccent } from './FintechDecor';
