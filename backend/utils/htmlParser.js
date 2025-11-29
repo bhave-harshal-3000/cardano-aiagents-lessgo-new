@@ -21,6 +21,10 @@ export const parseGPayHtmlWithPython = (htmlContent, fileName = 'unknown.html') 
       const tempFileName = `temp_${Date.now()}.html`;
       const tempFilePath = path.join(tempDir, tempFileName);
       fs.writeFileSync(tempFilePath, htmlContent, 'utf-8');
+      
+      console.log('[htmlParser] Temp file created:', tempFilePath);
+      console.log('[htmlParser] Temp file size:', fs.statSync(tempFilePath).size);
+      console.log('[htmlParser] Calling Python parser...');
 
       // Run Python parser
       const pythonScript = path.join(__dirname, '..', '..', 'ai_backend', 'parse_html_to_json.py');
@@ -46,6 +50,11 @@ export const parseGPayHtmlWithPython = (htmlContent, fileName = 'unknown.html') 
           console.error('Failed to cleanup temp file:', e);
         }
 
+        console.log('[htmlParser] Python process exited with code:', code);
+        console.log('[htmlParser] Stdout length:', stdout.length);
+        console.log('[htmlParser] Stderr:', stderr);
+        console.log('[htmlParser] Stdout preview (first 500):', stdout.substring(0, 500));
+
         if (code !== 0) {
           console.error('Python script error:', stderr);
           reject(new Error(`Python parser failed: ${stderr}`));
@@ -54,6 +63,7 @@ export const parseGPayHtmlWithPython = (htmlContent, fileName = 'unknown.html') 
 
         try {
           const parsed = JSON.parse(stdout);
+          console.log('[htmlParser] Parsed transactions count:', parsed.length);
           
           // Map Python parser output to MongoDB schema
           const transactions = parsed.map(tx => ({

@@ -82,9 +82,8 @@ def export_transactions_to_csv():
         other_cols = [col for col in df.columns if col not in preferred_order]
         df = df[available_cols + other_cols]
         
-        # Create CSV file with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_filename = f"transactions_export_{timestamp}.csv"
+        # Create CSV file with consistent name (overwrites previous)
+        csv_filename = "transactions_export.csv"
         csv_filepath = os.path.join(os.path.dirname(__file__), csv_filename)
         
         # Export to CSV

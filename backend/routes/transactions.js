@@ -24,8 +24,20 @@ router.post('/', async (req, res) => {
       const htmlContent = req.body.htmlFile.content;
       const fileName = req.body.htmlFile.fileName;
       
+      console.log('\n========== HTML UPLOAD DEBUG ==========');
       console.log('Parsing HTML file:', fileName);
+      console.log('HTML content type:', typeof htmlContent);
       console.log('HTML content length:', htmlContent.length);
+      console.log('HTML is string:', typeof htmlContent === 'string');
+      console.log('HTML starts with:', htmlContent.substring(0, 200));
+      console.log('HTML ends with:', htmlContent.substring(htmlContent.length - 200));
+      console.log('HTML contains "<html":', htmlContent.includes('<html'));
+      console.log('HTML contains "₹":', htmlContent.includes('₹'));
+      console.log('HTML contains "Sent":', htmlContent.includes('Sent'));
+      console.log('HTML contains "Received":', htmlContent.includes('Received'));
+      console.log('HTML contains "outer-cell":', htmlContent.includes('outer-cell'));
+      console.log('HTML contains "Google Pay":', htmlContent.includes('Google Pay'));
+      console.log('========================================\n');
       
       try {
         // Use Python flexible parser
