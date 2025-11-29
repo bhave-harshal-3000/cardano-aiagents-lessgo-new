@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
     console.log('AI Backend path:', aiBackendPath);
     
     // Spawn Python process to run insights agent
-    const pythonProcess = spawn('python', [path.join(aiBackendPath, 'run_insights.py')], {
+    const pythonProcess = spawn('python', [path.join(aiBackendPath, 'insights_agent.py')], {
       cwd: aiBackendPath,
       timeout: 120000 // 2 minute timeout for AI processing
     });

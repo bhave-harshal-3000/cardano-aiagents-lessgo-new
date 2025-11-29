@@ -90,14 +90,14 @@ def export_transactions_to_csv():
         # Export to CSV
         df.to_csv(csv_filepath, index=False, encoding='utf-8')
         
-        print(f"\n✅ CSV exported successfully!")
+        print("\n[SUCCESS] CSV exported successfully!")
         print(f"File: {csv_filepath}")
         print(f"Total rows: {len(df)}")
         print(f"Total columns: {len(df.columns)}")
         print(f"\nColumns: {', '.join(df.columns.tolist())}")
         
         # Print summary statistics
-        print(f"\n📊 Summary Statistics:")
+        print("\n[STATS] Summary Statistics:")
         print(f"  Total Transactions: {len(df)}")
         if 'type' in df.columns:
             print(f"  Income: {len(df[df['type'] == 'income'])}")
@@ -114,7 +114,9 @@ def export_transactions_to_csv():
         return csv_filepath
         
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        print(f"[ERROR] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise
 
 if __name__ == '__main__':
