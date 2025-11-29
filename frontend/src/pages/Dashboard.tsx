@@ -20,6 +20,8 @@ import { Modal } from '../components/Modal';
 import { TopBar } from '../components/TopBar';
 import { receiptTheme } from '../styles/receiptTheme';
 import { ReceiptBarcode, ReceiptDivider, ReceiptHeader } from '../components';
+import { savingsAPI } from '../services/api';
+import { useWallet } from '../contexts/WalletContext';
 
 export const Dashboard: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());

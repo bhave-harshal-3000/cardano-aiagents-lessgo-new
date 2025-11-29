@@ -8,6 +8,8 @@ import { Modal } from '../components/Modal';
 import { TopBar } from '../components/TopBar';
 import { transactionAPI } from '../services/api';
 import { useWallet } from '../contexts/WalletContext';
+import { receiptTheme } from '../styles/receiptTheme';
+import { ReceiptBarcode, ReceiptDivider, ReceiptHeader } from '../components';
 
 interface Transaction {
   id: string;

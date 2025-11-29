@@ -7,6 +7,8 @@ import { Card } from '../components/Card';
 import { TopBar } from '../components/TopBar';
 import { budgetAPI } from '../services/api';
 import { useWallet } from '../contexts/WalletContext';
+import { receiptTheme } from '../styles/receiptTheme';
+import { ReceiptBarcode, ReceiptHeader } from '../components';
 
 interface BudgetCategory {
   name: string;
