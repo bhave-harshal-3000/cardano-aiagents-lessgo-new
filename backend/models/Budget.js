@@ -6,28 +6,50 @@ const budgetSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  goalName: {
+    type: String,
+    required: true,
+    description: 'What the user wants to save for (e.g., "Watch", "Bike", "Laptop")'
+  },
   category: {
     type: String,
+    enum: ['gadget', 'vehicle', 'travel', 'education', 'luxury', 'other'],
     required: true,
   },
-  limit: {
+  targetAmount: {
     type: Number,
     required: true,
+    description: 'How much to save (e.g., 6000)'
   },
-  spent: {
+  currentSavings: {
     type: Number,
     default: 0,
+    description: 'Amount saved so far'
   },
-  period: {
+  deadline: {
+    type: Date,
+    required: true,
+    description: 'When the user wants to buy this item'
+  },
+  priority: {
     type: String,
-    enum: ['daily', 'weekly', 'monthly', 'yearly'],
-    default: 'monthly',
+    enum: ['high', 'medium', 'low'],
+    default: 'medium',
+    description: 'Priority level for recommendations'
   },
-  startDate: {
+  status: {
+    type: String,
+    enum: ['active', 'completed', 'paused', 'abandoned'],
+    default: 'active',
+  },
+  createdAt: {
     type: Date,
     default: Date.now,
   },
-  endDate: Date,
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 export default mongoose.model('Budget', budgetSchema);

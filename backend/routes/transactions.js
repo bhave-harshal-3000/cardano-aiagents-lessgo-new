@@ -1,5 +1,6 @@
 import express from 'express';
 import Transaction from '../models/Transaction.js';
+import User from '../models/User.js';
 import { parseGPayHtmlWithPython } from '../utils/htmlParser.js';
 
 const router = express.Router();
@@ -19,51 +20,52 @@ router.get('/:userId', async (req, res) => {
 // Create new transaction
 router.post('/', async (req, res) => {
   try {
-    console.log('\n========== TRANSACTION CREATE DEBUG ==========');
-    console.log('Request body keys:', Object.keys(req.body));
-    console.log('Received walletAddress:', req.body.walletAddress);
-    console.log('Received userId:', req.body.userId);
-    console.log('==========================================\n');
-    
     // Check if this is an HTML file upload that needs parsing
     if (req.body.htmlFile && req.body.htmlFile.content) {
       const htmlContent = req.body.htmlFile.content;
       const fileName = req.body.htmlFile.fileName;
       
-      console.log('\n========== HTML UPLOAD DEBUG ==========');
-      console.log('Parsing HTML file:', fileName);
-      console.log('HTML content type:', typeof htmlContent);
-      console.log('HTML content length:', htmlContent.length);
-      console.log('HTML is string:', typeof htmlContent === 'string');
-      console.log('HTML starts with:', htmlContent.substring(0, 200));
-      console.log('HTML ends with:', htmlContent.substring(htmlContent.length - 200));
-      console.log('HTML contains "<html":', htmlContent.includes('<html'));
-      console.log('HTML contains "₹":', htmlContent.includes('₹'));
-      console.log('HTML contains "Sent":', htmlContent.includes('Sent'));
-      console.log('HTML contains "Received":', htmlContent.includes('Received'));
-      console.log('HTML contains "outer-cell":', htmlContent.includes('outer-cell'));
-      console.log('HTML contains "Google Pay":', htmlContent.includes('Google Pay'));
-      console.log('========================================\n');
-      
       try {
-        // Use Python flexible parser
-        const parsedTransactions = await parseGPayHtmlWithPython(htmlContent, fileName, req.body.walletAddress);
+        // Ensure user exists before creating transactions
+        let user = null;
         
-        console.log('Parsed transactions count:', parsedTransactions.length);
-        if (parsedTransactions.length > 0) {
-          console.log('Sample transaction:', JSON.stringify(parsedTransactions[0], null, 2));
+        console.log(`[HTML Upload] userId: ${req.body.userId}, walletAddress: ${req.body.walletAddress}`);
+        
+        if (req.body.userId) {
+          user = await User.findById(req.body.userId);
+          console.log(`[HTML Upload] Found user by ID: ${user ? 'YES' : 'NO'}`);
         }
+        
+        // Create user if doesn't exist
+        if (!user) {
+          if (!req.body.walletAddress) {
+            console.error('[HTML Upload] ❌ Cannot create user: no walletAddress provided');
+            return res.status(400).json({
+              error: 'Cannot create transactions: missing walletAddress'
+            });
+          }
+          
+          user = new User({
+            walletAddress: req.body.walletAddress,
+            name: req.body.name || 'User',
+            email: req.body.email || '',
+          });
+          await user.save();
+          console.log(`✅ [HTML Upload] Created new user: ${user._id} with wallet: ${req.body.walletAddress}`);
+          req.body.userId = user._id; // Update userId to the newly created user
+        }
+        
+        const parsedTransactions = await parseGPayHtmlWithPython(htmlContent, fileName, req.body.walletAddress);
         
         if (parsedTransactions.length === 0) {
           return res.status(400).json({ 
-            error: 'No transactions found in HTML file. Please ensure you uploaded a valid Google Pay/Google Wallet activity file. The file should contain transaction history with amounts, dates, and descriptions.' 
+            error: 'No transactions found in HTML file. Please ensure you uploaded a valid Google Pay/Google Wallet activity file.' 
           });
         }
         
         // Save all parsed transactions to database
         const savedTransactions = [];
         for (const txData of parsedTransactions) {
-          console.log(`[HTML IMPORT] Saving transaction with walletAddress: ${req.body.walletAddress}`);
           const transaction = new Transaction({
             userId: req.body.userId,
             type: txData.type,
@@ -87,7 +89,6 @@ router.post('/', async (req, res) => {
             }
           });
           await transaction.save();
-          console.log(`[HTML IMPORT] Saved transaction ${transaction._id} with walletAddress: ${transaction.walletAddress}`);
           savedTransactions.push(transaction);
         }
         
@@ -105,8 +106,6 @@ router.post('/', async (req, res) => {
     }
     
     // Regular transaction creation (manual text input)
-    console.log('[MANUAL INPUT] Creating transaction with data:', { walletAddress: req.body.walletAddress, userId: req.body.userId });
-    
     const transactionData = {
       ...req.body,
       UPI: 0,           // Not HTML import
@@ -115,8 +114,6 @@ router.post('/', async (req, res) => {
     
     const transaction = new Transaction(transactionData);
     await transaction.save();
-    
-    console.log('[MANUAL INPUT] Saved transaction with walletAddress:', transaction.walletAddress);
     res.status(201).json(transaction);
   } catch (error) {
     res.status(400).json({ error: error.message });
