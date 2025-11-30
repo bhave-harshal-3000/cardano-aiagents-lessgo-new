@@ -94,7 +94,7 @@ def create_analysis_task(csv_content: str) -> Task:
     """Create the analysis task with CSV data embedded"""
     return Task(
         description=f"""Analyze this COMPLETE financial dataset and provide comprehensive insights in STRICT JSON format ONLY.
-
+Use easy simple words and with examples from the data.
 Return ONLY valid JSON with this exact structure - NO markdown, NO text, ONLY JSON:
 
 {{

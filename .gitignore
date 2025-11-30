@@ -1,11 +1,4 @@
-﻿node_modules/
-dist/
-.env
-.env.local
-*.log
-.DS_Store
-__pycache__/
-*.pyc
-.pytest_cache/
-.venv/
-venv/
+﻿/*
+!ai_backend/
+!.gitignore
+!README.md
